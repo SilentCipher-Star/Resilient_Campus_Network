@@ -1,35 +1,45 @@
 #include "Graph.h"
 
 int main() {
-    // 5 Nodes: 0 (Source/Server), 1(A), 2(B), 3(C), 4(D/Target)
-    Graph g(5);
-    
-    // addEdge(u, v, latency, bandwidth)
-    g.addEdge(0, 1, 4, 20); // S to A
-    g.addEdge(0, 2, 2, 15); // S to B
-    g.addEdge(1, 3, 5, 12); // A to C
-    g.addEdge(2, 3, 3, 8);  // B to C
-    g.addEdge(3, 4, 4, 10); // C to D
-    
-    int source = 0, destination = 4;
+  // 5 Nodes representing campus locations:
+  // 0: ICT Center
+  // 1: Academic Building 1
+  // 2: Academic Building 2
+  // 3: Library
+  // 4: Auditorium
+  std::vector<std::string> campusNodes = {"ICT Center", "Academic Building 1",
+                                          "Academic Building 2", "Library",
+                                          "Auditorium"};
 
-    std::cout << "--- Initial Network State ---\n";
-    std::cout << "Reachable: " << (g.isReachable(source, destination) ? "Yes" : "No") << "\n";
-    std::cout << "Minimum Latency: " << g.dijkstra(source, destination) << " ms\n";
-    std::cout << "Maximum Bandwidth: " << g.edmondsKarp(source, destination) << " Mbps\n\n";
+  Graph g(5, campusNodes);
 
-    // Simulate link failure: Router C to Target D goes down
-    std::cout << "--- Simulating Failure (Link 3 -> 4) ---\n";
-    g.toggleLink(3, 4, false);
+  // addEdge(u, v, latency_ms, capacity_Mbps)
+  g.addEdge(0, 1, 4, 20); // ICT Center to AB 1
+  g.addEdge(0, 2, 2, 15); // ICT Center to AB 2
+  g.addEdge(1, 3, 5, 12); // AB 1 to Library
+  g.addEdge(2, 3, 3, 8);  // AB 2 to Library
+  g.addEdge(3, 4, 4, 10); // Library to Auditorium
 
-    std::cout << "Reachable: " << (g.isReachable(source, destination) ? "Yes" : "No") << "\n";
-    int lat = g.dijkstra(source, destination);
-    if (lat != -1) {
-        std::cout << "Minimum Latency: " << lat << " ms\n";
-        std::cout << "Maximum Bandwidth: " << g.edmondsKarp(source, destination) << " Mbps\n";
-    } else {
-        std::cout << "Target is completely disconnected. Routing halted.\n";
-    }
+  int source = 0, destination = 4;
 
-    return 0;
+  std::cout << ">>> INITIAL CAMPUS NETWORK STATE <<<\n\n";
+  g.analyzeNetwork(source, destination);
+
+  // Simulate link failure: Library (3) to Auditorium (4) goes down
+  std::cout << ">>> SIMULATING LINK FAILURE: Library <-> Auditorium "
+               "<<<\n\n";
+  g.toggleLink(3, 4, false);
+
+  g.analyzeNetwork(source, destination);
+
+  // Restore link 3-4 and cut link 0-1 ( ICT Center <-> AB 1) to show dynamic
+  // rerouting
+  std::cout << ">>> RESTORING LINK 3-4 AND CUTTING LINK 0-1 (ICT Center <-> "
+               "AB 1) <<<\n\n";
+  g.toggleLink(3, 4, true);
+  g.toggleLink(0, 1, false);
+
+  g.analyzeNetwork(source, destination);
+
+  return 0;
 }
