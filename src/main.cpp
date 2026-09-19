@@ -1,5 +1,6 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
+#include <string>
 #include <iostream>
 #include "Graph.h"
 
@@ -12,108 +13,154 @@ int main() {
     g.addEdge(2, 3, 3, 8);  
     g.addEdge(3, 4, 4, 10); 
 
-    // 2. Initialize SFML Window with Anti-Aliasing for smooth, clean rendering
+    // 2. Window & Font Setup
     sf::ContextSettings settings;
     settings.antialiasingLevel = 8;
-    sf::RenderWindow window(sf::VideoMode(1280, 720), "Resilient Campus Network Dashboard", sf::Style::Default, settings);
+    sf::RenderWindow window(sf::VideoMode(1280, 720), "Resilient Campus Network Console", sf::Style::Default, settings);
     window.setFramerateLimit(60);
 
-    // 3. Sophisticated Color Palette (Inspired by reference dashboard)
-    sf::Color bgDarkSlate(15, 20, 31);       // Deep navy/slate background
-    sf::Color edgeBase(60, 75, 100);         // Muted blue-gray for inactive links
-    sf::Color edgeActive(0, 230, 255);       // Bright cyan for shortest path
-    sf::Color edgeError(255, 65, 85);        // Alert red/pink for failed links
-    
-    sf::Color nodeCore(0, 230, 255);         // Solid cyan core
-    sf::Color nodeHalo(0, 230, 255, 30);     // Transparent cyan glow (alpha = 30)
-    sf::Color nodeDisconnected(70, 70, 80);  // Dimmed gray for unreachable nodes
+    sf::Font font;
+    if (!font.loadFromFile("font.ttf")) {
+        std::cerr << "Error: font.ttf not found in directory. The copy command failed!\n";
+        return -1;
+    }
 
+    // 3. UI Color Palette
+    sf::Color bgDark(12, 12, 14);           
+    sf::Color panelDark(22, 24, 28);        
+    sf::Color deepPurple(157, 0, 255);      
+    sf::Color cyanActive(0, 230, 255);      
+    sf::Color errorRed(255, 65, 85);        
+    sf::Color textLight(220, 220, 225);
+    sf::Color textMuted(120, 120, 130);
+
+    // 4. UI Layout Regions
+    sf::RectangleShape titleBar(sf::Vector2f(1280, 50));
+    titleBar.setFillColor(panelDark);
+
+    sf::RectangleShape stepperBar(sf::Vector2f(1280, 40));
+    stepperBar.setPosition(0, 50);
+    stepperBar.setFillColor(sf::Color(18, 20, 24));
+
+    sf::RectangleShape rightPanel(sf::Vector2f(380, 530));
+    rightPanel.setPosition(900, 90);
+    rightPanel.setFillColor(panelDark);
+
+    sf::RectangleShape bottomBar(sf::Vector2f(1280, 100));
+    bottomBar.setPosition(0, 620);
+    bottomBar.setFillColor(panelDark);
+
+    // 5. Graph Coordinates 
     std::vector<sf::Vector2f> nodePositions = {
-        {250.f, 360.f}, {600.f, 200.f}, {600.f, 520.f}, {950.f, 360.f}, {1150.f, 360.f}
+        {150.f, 350.f}, {450.f, 200.f}, {450.f, 500.f}, {750.f, 350.f}, {860.f, 350.f}
     };
-
     std::vector<std::pair<int, int>> edges = {
         {0, 1}, {0, 2}, {1, 3}, {2, 3}, {3, 4}
     };
 
-    // Simulation States
+    // 6. Simulation State
+    int currentStage = 0; 
     bool linkFailed = false;
-    bool showShortestPath = false;
-
-    std::cout << "--- DASHBOARD CONTROLS ---\n";
-    std::cout << "[ENTER] : Calculate and Highlight Minimum-Latency Route\n";
-    std::cout << "[SPACE] : Simulate Link Failure (Node 3 -> Node 4)\n";
-    std::cout << "[R]     : Reset Network\n\n";
 
     while (window.isOpen()) {
         sf::Event event;
         while (window.pollEvent(event)) {
-            if (event.type == sf::Event::Closed)
-                window.close();
+            if (event.type == sf::Event::Closed) window.close();
             
-            // Keyboard Controls
             if (event.type == sf::Event::KeyPressed) {
-                if (event.key.code == sf::Keyboard::Enter) {
-                    showShortestPath = true;
-                    std::cout << "> Running Dijkstra...\n";
-                    g.dijkstra(0, 4);
-                }
+                // Stepper Controls
+                if (event.key.code == sf::Keyboard::Num1) currentStage = 1; 
+                if (event.key.code == sf::Keyboard::Num2) currentStage = 2; 
+                if (event.key.code == sf::Keyboard::Num3) currentStage = 3; 
+                if (event.key.code == sf::Keyboard::Num0) currentStage = 0; 
+                
+                // Disruption & Master Reset Controls
                 if (event.key.code == sf::Keyboard::Space) {
-                    linkFailed = true;
-                    showShortestPath = false; 
-                    g.toggleLink(3, 4, false);
-                    std::cout << "> ALERT: Fiber cut detected between Node 3 and Node 4!\n";
+                    linkFailed = !linkFailed; 
+                    g.toggleLink(3, 4, !linkFailed);
                 }
                 if (event.key.code == sf::Keyboard::R) {
+                    currentStage = 0;
                     linkFailed = false;
-                    showShortestPath = false;
                     g.toggleLink(3, 4, true);
-                    std::cout << "> System Reset.\n";
                 }
             }
         }
 
-        window.clear(bgDarkSlate);
+        window.clear(bgDark);
 
-        // Draw Edges (Lines)
+        // --- DRAW UI PANELS ---
+        window.draw(titleBar);
+        window.draw(stepperBar);
+        window.draw(rightPanel);
+        window.draw(bottomBar);
+
+        // --- DRAW TEXT ELEMENTS ---
+        auto drawText = [&](std::string str, float x, float y, int size, sf::Color color) {
+            sf::Text t(str, font, size);
+            t.setPosition(x, y);
+            t.setFillColor(color);
+            window.draw(t);
+        };
+
+        drawText("RESILIENT CAMPUS NETWORK CONSOLE", 20, 15, 16, cyanActive);
+        
+        // Stepper Text
+        drawText("[0] Baseline", 20, 60, 14, currentStage == 0 ? cyanActive : textMuted);
+        drawText("[1] Reachability (BFS)", 150, 60, 14, currentStage == 1 ? cyanActive : textMuted);
+        drawText("[2] Min-Latency (Dijkstra)", 350, 60, 14, currentStage == 2 ? cyanActive : textMuted);
+        drawText("[3] Throughput (Max Flow)", 580, 60, 14, currentStage == 3 ? cyanActive : textMuted);
+
+        // Right Panel Content
+        drawText("LIVE FEED & RESULTS", 920, 110, 16, deepPurple);
+        if (linkFailed) drawText("ALERT: Link 3->4 Failed", 920, 150, 14, errorRed);
+        else drawText("System Nominal", 920, 150, 14, textLight);
+
+        if (currentStage == 1) {
+            drawText("> Running BFS...", 920, 200, 14, textMuted);
+            drawText(linkFailed ? "Target Unreachable" : "Target Reachable", 920, 220, 14, textLight);
+        } else if (currentStage == 2 && !linkFailed) {
+            drawText("> Running Dijkstra...", 920, 200, 14, textMuted);
+            drawText("Path: 0 -> 2 -> 3 -> 4", 920, 220, 14, textLight);
+            drawText("Total Latency: 9 ms", 920, 240, 14, cyanActive);
+        } else if (currentStage == 3 && !linkFailed) {
+            drawText("> Running Edmonds-Karp...", 920, 200, 14, textMuted);
+            drawText("Bottleneck: 8 Mbps", 920, 220, 14, textLight);
+            drawText("Max Flow: 10 Mbps", 920, 240, 14, deepPurple);
+        } else if (currentStage == 0) {
+            drawText("> Waiting for input...", 920, 200, 14, textMuted);
+        }
+
+        // Bottom Bar Controls
+        drawText("DISRUPTION INJECTION & CONTROLS", 20, 640, 14, textMuted);
+        drawText("Press [SPACE] Toggle Fiber Cut   |   Press [0-3] Step Pipeline   |   Press [R] Master Reset", 20, 670, 14, textLight);
+
+        // --- DRAW GRAPH MAP ---
         for (size_t i = 0; i < edges.size(); ++i) {
-            sf::Color currentColor = edgeBase;
-            
-            if (i == 4 && linkFailed) {
-                currentColor = edgeError;
-            } else if (showShortestPath && !linkFailed && (i == 1 || i == 3 || i == 4)) {
-                currentColor = edgeActive;
-            }
+            sf::Color eCol = sf::Color(70, 70, 80);
+            if (i == 4 && linkFailed) eCol = errorRed;
+            else if (currentStage == 2 && !linkFailed && (i == 1 || i == 3 || i == 4)) eCol = cyanActive;
+            else if (currentStage == 3 && !linkFailed) eCol = deepPurple; 
 
             sf::Vertex line[] = {
-                sf::Vertex(nodePositions[edges[i].first], currentColor),
-                sf::Vertex(nodePositions[edges[i].second], currentColor)
+                sf::Vertex(nodePositions[edges[i].first], eCol),
+                sf::Vertex(nodePositions[edges[i].second], eCol)
             };
             window.draw(line, 2, sf::Lines);
         }
 
-        // Draw Nodes (Two-layer design for a clean, modern look)
         for (size_t i = 0; i < nodePositions.size(); ++i) {
-            bool isDisconnected = (i == 4 && linkFailed);
+            bool isDead = (i == 4 && linkFailed);
+            sf::CircleShape node(12.f);
+            node.setOrigin(12.f, 12.f);
+            node.setPosition(nodePositions[i]);
+            node.setFillColor(isDead ? sf::Color(50, 50, 50) : deepPurple);
+            if (currentStage == 2 && !isDead && (i == 0 || i == 2 || i == 3 || i == 4)) node.setFillColor(cyanActive);
             
-            // 1. Draw the outer semi-transparent halo
-            sf::CircleShape halo(22.f);
-            halo.setOrigin(22.f, 22.f);
-            halo.setPosition(nodePositions[i]);
-            halo.setFillColor(isDisconnected ? sf::Color::Transparent : nodeHalo);
-            
-            // 2. Draw the solid inner core
-            sf::CircleShape core(8.f);
-            core.setOrigin(8.f, 8.f);
-            core.setPosition(nodePositions[i]);
-            core.setFillColor(isDisconnected ? nodeDisconnected : nodeCore);
-
-            window.draw(halo);
-            window.draw(core);
+            window.draw(node);
         }
 
         window.display();
     }
-
     return 0;
 }
