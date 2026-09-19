@@ -1,11 +1,29 @@
 #include "Graph.h"
 #include <algorithm>
+#include <iomanip>
 
 const int INF = std::numeric_limits<int>::max();
 
-Graph::Graph(int V) {
+Graph::Graph(int V, const std::vector<std::string>& names) {
     this->V = V;
     adj.resize(V);
+    setNodeNames(names);
+}
+
+void Graph::setNodeNames(const std::vector<std::string>& names) {
+    nodeNames = names;
+    if ((int)nodeNames.size() < V) {
+        for (int i = nodeNames.size(); i < V; ++i) {
+            nodeNames.push_back("Node " + std::to_string(i));
+        }
+    }
+}
+
+std::string Graph::getNodeName(int u) const {
+    if (u >= 0 && u < (int)nodeNames.size()) {
+        return nodeNames[u];
+    }
+    return "Node " + std::to_string(u);
 }
 
 void Graph::addEdge(int u, int v, int latency, int capacity) {
@@ -45,11 +63,10 @@ bool Graph::isReachable(int s, int t) {
     return false;
 }
 
-void Graph::dijkstra(int s, int t) {
+int Graph::dijkstra(int s, int t, std::vector<int>& path) {
+    path.clear();
     std::vector<int> dist(V, INF);
     std::vector<int> parent(V, -1);
-    std::vector<int> edgeCap(V, 0); // Tracks capacity of the edge used
-    
     std::priority_queue<std::pair<int, int>, std::vector<std::pair<int, int>>, std::greater<>> pq;
     
     dist[s] = 0;
@@ -61,40 +78,50 @@ void Graph::dijkstra(int s, int t) {
         pq.pop();
         
         if (d > dist[u]) continue;
-        if (u == t) break; // Stop early if target is reached
+        if (u == t) break;
         
         for (const auto& edge : adj[u]) {
             if (edge.isActive && dist[u] + edge.latency < dist[edge.to]) {
                 dist[edge.to] = dist[u] + edge.latency;
-                parent[edge.to] = u;                 // Track path
-                edgeCap[edge.to] = edge.capacity;    // Track bottleneck
+                parent[edge.to] = u;
                 pq.push({dist[edge.to], edge.to});
             }
         }
     }
     
-    if (dist[t] == INF) return;
+    if (dist[t] == INF) return -1;
 
-    // Path Reconstruction & Bottleneck Calculation
-    std::vector<int> path;
-    int curr = t;
-    int bottleneck = INF;
-
-    while (curr != -1) {
+    for (int curr = t; curr != -1; curr = parent[curr]) {
         path.push_back(curr);
-        if (parent[curr] != -1) {
-            bottleneck = std::min(bottleneck, edgeCap[curr]);
-        }
-        curr = parent[curr];
     }
     std::reverse(path.begin(), path.end());
+    
+    return dist[t];
+}
 
-    std::cout << "Minimum Latency: " << dist[t] << " ms\n";
-    std::cout << "Fastest Path: ";
-    for (size_t i = 0; i < path.size(); ++i) {
-        std::cout << path[i] << (i == path.size() - 1 ? "" : " -> ");
+int Graph::getBottleneckCapacity(const std::vector<int>& path, int& u_out, int& v_out) {
+    if (path.size() < 2) return 0;
+    
+    int minCap = INF;
+    u_out = -1;
+    v_out = -1;
+    
+    for (size_t i = 0; i < path.size() - 1; ++i) {
+        int u = path[i];
+        int v = path[i+1];
+        
+        for (const auto& edge : adj[u]) {
+            if (edge.to == v && edge.isActive) {
+                if (edge.capacity < minCap) {
+                    minCap = edge.capacity;
+                    u_out = u;
+                    v_out = v;
+                }
+                break;
+            }
+        }
     }
-    std::cout << "\nPath Bottleneck: " << bottleneck << " Mbps\n";
+    return minCap == INF ? 0 : minCap;
 }
 
 int Graph::edmondsKarp(int s, int t) {
@@ -154,3 +181,29 @@ int Graph::edmondsKarp(int s, int t) {
     }
     return maxFlow;
 }
+
+void Graph::analyzeNetwork(int s, int t) {
+    bool reachable = isReachable(s, t);
+    std::cout << "Reachable   : " << (reachable ? "Yes" : "No") << "\n";
+
+    if (!reachable) {
+        std::cout << "Path        : Disconnected (Routing & Flow halted)\n\n";
+        return;
+    }
+
+    std::vector<int> path;
+    int minLatency = dijkstra(s, t, path);
+    int u_bn, v_bn;
+    int bnCap = getBottleneckCapacity(path, u_bn, v_bn);
+    int maxThroughput = edmondsKarp(s, t);
+
+    std::cout << "Fastest Path: ";
+    for (size_t i = 0; i < path.size(); ++i) {
+        std::cout << getNodeName(path[i]);
+        if (i + 1 < path.size()) std::cout << " -> ";
+    }
+    std::cout << "\n";
+    std::cout << "Latency     : " << minLatency << " ms\n";
+    std::cout << "Max Flow    : " << maxThroughput << " Mbps (Path Bottleneck: " << bnCap << " Mbps)\n\n";
+}
+
