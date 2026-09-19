@@ -45,8 +45,11 @@ bool Graph::isReachable(int s, int t) {
     return false;
 }
 
-int Graph::dijkstra(int s, int t) {
+void Graph::dijkstra(int s, int t) {
     std::vector<int> dist(V, INF);
+    std::vector<int> parent(V, -1);
+    std::vector<int> edgeCap(V, 0); // Tracks capacity of the edge used
+    
     std::priority_queue<std::pair<int, int>, std::vector<std::pair<int, int>>, std::greater<>> pq;
     
     dist[s] = 0;
@@ -58,16 +61,40 @@ int Graph::dijkstra(int s, int t) {
         pq.pop();
         
         if (d > dist[u]) continue;
-        if (u == t) return dist[t];
+        if (u == t) break; // Stop early if target is reached
         
         for (const auto& edge : adj[u]) {
             if (edge.isActive && dist[u] + edge.latency < dist[edge.to]) {
                 dist[edge.to] = dist[u] + edge.latency;
+                parent[edge.to] = u;                 // Track path
+                edgeCap[edge.to] = edge.capacity;    // Track bottleneck
                 pq.push({dist[edge.to], edge.to});
             }
         }
     }
-    return dist[t] == INF ? -1 : dist[t];
+    
+    if (dist[t] == INF) return;
+
+    // Path Reconstruction & Bottleneck Calculation
+    std::vector<int> path;
+    int curr = t;
+    int bottleneck = INF;
+
+    while (curr != -1) {
+        path.push_back(curr);
+        if (parent[curr] != -1) {
+            bottleneck = std::min(bottleneck, edgeCap[curr]);
+        }
+        curr = parent[curr];
+    }
+    std::reverse(path.begin(), path.end());
+
+    std::cout << "Minimum Latency: " << dist[t] << " ms\n";
+    std::cout << "Fastest Path: ";
+    for (size_t i = 0; i < path.size(); ++i) {
+        std::cout << path[i] << (i == path.size() - 1 ? "" : " -> ");
+    }
+    std::cout << "\nPath Bottleneck: " << bottleneck << " Mbps\n";
 }
 
 int Graph::edmondsKarp(int s, int t) {

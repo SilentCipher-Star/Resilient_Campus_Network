@@ -25,7 +25,7 @@ public:
     void addEdge(int u, int v, int latency, int capacity);
     void toggleLink(int u, int v, bool state);
     bool isReachable(int s, int t);
-    int dijkstra(int s, int t);
+    void dijkstra(int s, int t);
     int edmondsKarp(int s, int t);
 };
 
