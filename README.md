@@ -17,14 +17,34 @@ The system analyzes the surviving network graph after simulated link failures to
 *   **Edmonds-Karp (Max Flow):** Calculates the maximum simultaneous data transfer capacity (bottleneck bandwidth) from the source server to the destination.
 
 ## 🚀 Compilation & Execution
-This project is built in C++ and can be compiled using `g++` via the Linux terminal.
+This project requires **SFML** (Simple and Fast Multimedia Library) for graphical rendering. It can be compiled using `g++` on any major operating system.
+
+**1. Install SFML**
+*   **Linux (Fedora/RHEL):** 
+    ```bash
+    sudo dnf install SFML-devel
+    ```
+*   **macOS (Homebrew):** 
+    ```bash
+    brew install sfml
+    ```
+*   **Windows (MSYS2 / MinGW64):** 
+    ```bash
+    pacman -S mingw-w64-x86_64-sfml
+    ```
+
+**2. Compile and Run**
+Navigate to the source directory and compile the code, ensuring the SFML hardware libraries are linked.
 
 ```bash
 # Navigate to the source directory
 cd src
 
 # Compile the source code
-g++ main.cpp Graph.cpp -o NetworkSim
+g++ main.cpp Graph.cpp -o NetworkSim -lsfml-graphics -lsfml-window -lsfml-system
 
-# Execute the simulation
+# Execute the dashboard (Linux/macOS)
 ./NetworkSim
+
+# Execute the dashboard (Windows)
+.\NetworkSim.exe
